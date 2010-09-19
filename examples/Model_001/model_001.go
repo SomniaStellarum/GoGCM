@@ -19,7 +19,7 @@ type datapoint struct {
     temp  float64
 }
 
-func (dt datapoint) String() string {
+func (dt *datapoint) String() string {
     return fmt.Sprintf("%d,%f,%f,%f\n", dt.count, dt.S, dt.F, dt.temp)
 }
 
@@ -34,25 +34,22 @@ func counter() (ch chan int) {
     return ch
 }
 
-func solar(ch chan int) (out chan datapoint) {
-    out = make(chan datapoint)
+func solar(ch chan int) (out chan *datapoint) {
+    out = make(chan *datapoint)
     go func() {
         S_Var := float64(S_Start)
         for c := range ch {
-            dt := new(datapoint)
-            dt.count = c
             S_Var = S_Var + 5 * rand.NormFloat64()
-            dt.S = S_Var
-            dt.F = S_Var * 0.25 * (1 - A)
-            out <- *dt
+            dt := datapoint{c, S_Var, S_Var * 0.25 * (1 - A), 0}
+            out <- &dt
         }
         close(out)
     }()
     return out
 }            
 
-func gcm(ch chan datapoint) (out chan datapoint) {
-    out = make(chan datapoint)
+func gcm(ch chan *datapoint) (out chan *datapoint) {
+    out = make(chan *datapoint)
     go func() {
         for dt := range ch {
             dt.temp = math.Pow(dt.F * Sigma_Inv, 0.25)
