@@ -87,7 +87,7 @@ func Solar_Drive() {
             return
         }
         dt.count++
-        dt.F = 0
+        dt.S, dt.F, dt.temp = 0,0,0
         ch1 <- dt
     }
     close(ch1)
@@ -105,7 +105,7 @@ func Temp_Drive() {
             return
         }
         dt.count++
-        dt.F = 0
+        dt.S, dt.F, dt.temp = 0,0,0
         ch1 <- dt
     }
     close(ch1)
