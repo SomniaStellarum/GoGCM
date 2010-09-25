@@ -1,0 +1,23 @@
+========================================
+    About GoGCM
+========================================
+
+GoGCM is an Open Source General Circulation Model (GCM) written in
+the Go Programming Language.
+
+For more information, visit the blog
+
+http://gogcm.blogspot.com/
+
+
+========================================
+    GoGCM Status
+========================================
+
+Currently, the GoGCM code repository is quite small. There is an
+example program (gcm.go) in the main directory. Eventually, this is
+where the main code will go for the GoGCM project. There is an example
+directory where code is being added for demonstration purposes. See
+the blog for descriptions of the example models.
+
+
