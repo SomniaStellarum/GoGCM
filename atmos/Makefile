@@ -5,8 +5,9 @@ GOFMT=gofmt -spaces=true -tabindent=false -tabwidth=4
 
 GOFILES=\
     atmos.go\
-    
+
 include $(GOROOT)/src/Make.pkg
 
 format:
-	${GOFMT} -w atmos.go
+${GOFMT} -w atmos.go
+
