@@ -9,5 +9,5 @@ GOFILES=\
 include $(GOROOT)/src/Make.pkg
 
 format:
-${GOFMT} -w atmos.go
-
+	${GOFMT} -w atmos.go
+    
