@@ -19,10 +19,17 @@ const (
     KM = 1000
 )
 
-type Input struct {
+type FluxInput struct {
     NumGridpoints int
     FluxTransfer []int // Contains a list of all flux transfers to be calculated.
     FluxIndex []int
+    chFlux1 chan *Datapoint
+    chFlux2 chan *Datapoint
+}
+
+type GCMInput struct {
+    NumGridpoints int
+    ch chan *Datapoint
 }
 // Flux Index lists the indexes that delimit a slice for each gridpoint. This slice indicates
 // to which other gridpoints it calculates a flux to.
@@ -77,7 +84,7 @@ func (dt *Datapoint) String() string {
     return fmt.Sprintf("%s\n", s)
 }
 
-func Flux(ch1 chan *Datapoint, ch2 chan *Datapoint, in Input) (out chan *Datapoint) {
+func Flux(in FluxInput) (out chan *Datapoint) {
     out = make(chan *Datapoint)
     fc := make(chan *FluxComponent) // Channel to receive flux components from each gridpoint
     id := make(chan int)
@@ -100,7 +107,7 @@ func Flux(ch1 chan *Datapoint, ch2 chan *Datapoint, in Input) (out chan *Datapoi
     } ()
     go func() {
         S_Var := float64(S_Start)
-        for dt := range ch1 {
+        for dt := range in.chFlux1 {
             fc <- &FluxComponent{dt.K * dt.Temp[0], dt.Idx}
             S_Var = S_Var + 5 * rand.NormFloat64()
             dt.F[0] = S_Var * 0.25 * (1 - dt.A) //solar effect
@@ -113,7 +120,7 @@ func Flux(ch1 chan *Datapoint, ch2 chan *Datapoint, in Input) (out chan *Datapoi
         }
     } ()
     go func() {
-        for dt := range ch2 {
+        for dt := range in.chFlux2 {
             id <- dt.Idx
             dt.F[6] = <-fc_ret
             dt.F[7] = <-fc_ret
@@ -129,11 +136,11 @@ func Flux(ch1 chan *Datapoint, ch2 chan *Datapoint, in Input) (out chan *Datapoi
     return out
 }
 
-func gcm(ch chan *Datapoint) (out chan *Datapoint) {
+func gcm(in GCMInput) (out chan *Datapoint) {
     out = make(chan *Datapoint)
     go func() {
         Q := float64(0)
-        for dt := range ch {
+        for dt := range in.ch {
             //Calculate Temperatures
             Q = dt.Area * (dt.F[0] - dt.F[1] + dt.F[2])
             Q += dt.BoundL[0] * dt.F[6]
@@ -166,7 +173,7 @@ func main() {
         t[2] = 254//AbsZero - 20
         f := make([]float64,9)
         dt[i] = *NewDatapoint(t,f)
-        fmt.Print(dt[i])
+        fmt.Print(&dt[i])
         dt[i].Idx = i
         dt[i].Area = KM * math.Pi * math.Pow(EarthR,2) // 4 pi r^2 / (4 gridpoints)
         dt[i].BoundL = []float64{KM*math.Pi*EarthR/2,KM*math.Pi*EarthR/2,KM*math.Pi*EarthR/2}
@@ -187,14 +194,17 @@ func main() {
     dt[3].Long = 45.0
     dt[3].SPole = true
     
-    in := &Input{4,[]int{2,3,4,1,3,4,1,2,4,1,2,3},[]int{0,3,3,6,6,9,9,12}}
+    FluxIn := &FluxInput{4,[]int{2,3,4,1,3,4,1,2,4,1,2,3},[]int{0,3,3,6,6,9,9,12},
+            make(chan *Datapoint), make(chan *Datapoint)}
     
-    ch1 := make(chan *Datapoint)
-    ch2 := make(chan *Datapoint)
-    ch3 := make(chan *Datapoint)
+    ch1 := FluxIn.chFlux1
+    ch2 := FluxIn.chFlux2
     
-    out1 := Flux(ch1, ch2, *in)
-    out2 := gcm(ch3)
+    GCMIn := &GCMInput{4, make(chan *Datapoint)}
+    ch3 := GCMIn.ch
+    
+    out1 := Flux(*FluxIn)
+    out2 := gcm(*GCMIn)
     for i := 0; i < 10; i++ {
         // Running the simulation
         fmt.Printf("Run %d!\n",i)
