@@ -39,13 +39,12 @@ func main() {
     dt[3].SPole = true
 
     FluxIn := &atm.FluxInput{4, []int{2, 3, 4, 1, 3, 4, 1, 2, 4, 1, 2, 3}, []int{0, 3, 3, 6, 6, 9, 9, 12},
-        make(chan *atm.Datapoint), make(chan *atm.Datapoint)}
+        make(chan *atm.Datapoint), make(chan *atm.FluxComponent)}
 
-    ch1 := FluxIn.ChFlux1
-    ch2 := FluxIn.ChFlux2
+    ch1 := FluxIn.ChFlux
 
-    GCMIn := &atm.GCMInput{4, make(chan *atm.Datapoint)}
-    ch3 := GCMIn.Ch
+    GCMIn := &atm.GCMInput{4, make(chan *atm.Datapoint), FluxIn.ChFluxComp}
+    ch2 := GCMIn.Ch
 
     out1 := atm.Flux(*FluxIn)
     out2 := atm.Gcm(*GCMIn)
@@ -58,10 +57,6 @@ func main() {
         }
         for _, d := range dt {
             ch2 <- &d
-            <-out1
-        }
-        for _, d := range dt {
-            ch3 <- &d
             <-out2
         }
         for _, d := range dt {

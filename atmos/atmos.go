@@ -23,13 +23,14 @@ type FluxInput struct {
 	NumGridpoints int
 	FluxTransfer  []int // Contains a list of all flux transfers to be calculated.
 	FluxIndex     []int
-	chFlux1       chan *Datapoint
-	chFlux2       chan *Datapoint
+	ChFlux        chan *Datapoint
+	ChFluxComp    chan *FluxComponent
 }
 
 type GCMInput struct {
 	NumGridpoints int
-	ch            chan *Datapoint
+	Ch            chan *Datapoint
+	ChFluxComp    chan *FluxComponent
 }
 // Flux Index lists the indexes that delimit a slice for each gridpoint. This slice indicates
 // to which other gridpoints it calculates a flux to.
@@ -86,7 +87,6 @@ func (dt *Datapoint) String() string {
 
 func Flux(in FluxInput) (out chan *Datapoint) {
 	out = make(chan *Datapoint)
-	fc := make(chan *FluxComponent) // Channel to receive flux components from each gridpoint
 	id := make(chan int)
 	fc_ret := make(chan float64)
 	go func() {
@@ -95,7 +95,7 @@ func Flux(in FluxInput) (out chan *Datapoint) {
 		flux := make([]float64, in.NumGridpoints)
 		for {
 			select {
-			case f := <-fc:
+			case f := <-in.ChFluxComp:
 				flux[f.Idx] = f.Fc
 			case idx := <-id:
 				ft := in.FluxTransfer[in.FluxIndex[idx*2]:in.FluxIndex[idx*2+1]]
@@ -107,8 +107,7 @@ func Flux(in FluxInput) (out chan *Datapoint) {
 	}()
 	go func() {
 		S_Var := float64(S_Start)
-		for dt := range in.chFlux1 {
-			fc <- &FluxComponent{dt.K * dt.Temp[0], dt.Idx}
+		for dt := range in.ChFlux {
 			S_Var = S_Var + 5*rand.NormFloat64()
 			dt.F[0] = S_Var * 0.25 * (1 - dt.A) //solar effect
 			dt.F[1] = Sigma * math.Pow(dt.Temp[0], 4)
@@ -116,15 +115,11 @@ func Flux(in FluxInput) (out chan *Datapoint) {
 			dt.F[3] = dt.F[2]
 			dt.F[4] = Sigma * math.Pow(dt.Temp[2], 4)
 			dt.F[5] = dt.F[4]
-			out <- dt
-		}
-	}()
-	go func() {
-		for dt := range in.chFlux2 {
+			
 			id <- dt.Idx
 			dt.F[6] = <-fc_ret
 			dt.F[7] = <-fc_ret
-			 dt.F[8] = <-fc_ret
+			dt.F[8] = <-fc_ret
 			if !(dt.NPole || dt.SPole) {
 				dt.F[9] = <-fc_ret
 			}
@@ -135,11 +130,11 @@ func Flux(in FluxInput) (out chan *Datapoint) {
 	return out
 }
 
-func gcm(in GCMInput) (out chan *Datapoint) {
+func Gcm(in GCMInput) (out chan *Datapoint) {
 	out = make(chan *Datapoint)
 	go func() {
 		Q := float64(0)
-		for dt := range in.ch {
+		for dt := range in.Ch {
 			//Calculate Temperatures
 			Q = dt.Area * (dt.F[0] - dt.F[1] + dt.F[2])
 			Q += dt.BoundL[0] * dt.F[6]
@@ -155,6 +150,9 @@ func gcm(in GCMInput) (out chan *Datapoint) {
 
 			Q = dt.Area * (dt.F[3] - dt.F[4] - dt.F[5])
 			dt.Temp[2] += Q / dt.Cp[2]
+			
+			in.ChFluxComp <- &FluxComponent{dt.K * dt.Temp[0], dt.Idx}
+			
 			out <- dt
 		}
 		close(out)
