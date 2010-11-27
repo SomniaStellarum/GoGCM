@@ -1,6 +1,7 @@
 package main
 
 import (
+    timestep "github.com/Arrow/GoGCM/util/timestep"
     atm "github.com/Arrow/GoGCM/atmos"
     "fmt"
     "math"
@@ -9,6 +10,7 @@ import (
 
 func main() {
     dt := make([]atm.Datapoint, 4)
+    ch_ts := timestep.MasterTimeStep()
 
     for i := 0; i < 4; i++ {
         t := make([]float64, 3)
@@ -62,5 +64,6 @@ func main() {
         for _, d := range dt {
             fmt.Print(&d)
         }
+        <-ch_ts
     }
 }

@@ -1,8 +1,9 @@
 package atmos
 
 import (
+	solar "github.com/Arrow/GoGCM/solar"
 	"fmt"
-	"rand"
+	//"rand"
 	"math"
 )
 
@@ -10,7 +11,6 @@ const (
 	A         = 0.306
 	Sigma     = 5.6704e-8
 	Sigma_Inv = 1 / 5.6704e-8
-	S_Start   = 1366.1
 	T_Start   = 305
 	EarthR    = 6371 // in km - Mean Radius
 	AbsZero   = 273.15
@@ -106,10 +106,10 @@ func Flux(in FluxInput) (out chan *Datapoint) {
 		}
 	}()
 	go func() {
-		S_Var := float64(S_Start)
+		ch_sol := solar.Solar()
 		for dt := range in.ChFlux {
-			S_Var = S_Var + 5*rand.NormFloat64()
-			dt.F[0] = S_Var * 0.25 * (1 - dt.A) //solar effect
+			s := <-ch_sol
+			dt.F[0] = s * 0.25 * (1 - dt.A) //solar effect
 			dt.F[1] = Sigma * math.Pow(dt.Temp[0], 4)
 			dt.F[2] = Sigma * math.Pow(dt.Temp[1], 4)
 			dt.F[3] = dt.F[2]
